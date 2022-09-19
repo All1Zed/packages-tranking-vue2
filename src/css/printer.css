@@ -1,0 +1,56 @@
+.lables{
+  height: 1000px;
+  margin: 100px 0;
+  background-color: #fff;
+  border-radius: 5px;
+}
+.lables, #confirm{
+  text-transform: uppercase;
+  border:1px solid;
+  margin-top: 12px;
+}
+.sct{
+  border-top: 1px solid;
+  padding: 12px 4px;
+}
+
+.sct.canvas div canvas{
+  text-align: center;
+  padding: auto;
+  padding: 10px;
+}
+
+.bb-1{
+  border-left: 1px solid;
+}
+
+.sct p{
+  padding: 0;
+  margin: 0;
+  font-size: 18pt;
+  font-family: 'helvetica';
+
+}
+.lables h3{
+  font-size: 22pt;
+  font-family: 'arial rounded mt';
+}
+
+.text-center{
+  text-align: center;
+}
+
+.py-4{
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.text-right{
+  text-align: right;
+}
+canvas{margin: auto;}
+.capitalize{
+  text-transform: capitalize;
+  font-size: 18pt;
+  font-family: 'calibri light';
+  margin-top: 8px;
+}
