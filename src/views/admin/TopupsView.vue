@@ -70,12 +70,16 @@ export default {
         loading: false,
 
         feed_dialog: false,
+        pay_complete: false,
         feed_title: '',
         feed_message: '',
         err:null,
 
         plan_phone: null,
         plan_choice:null,
+
+        pay_query_data: null,
+        pay_query_count: 1,
 
         plans:[],
         plan_list:[],
@@ -106,9 +110,7 @@ export default {
             })
         },
         selectPlan(choice){
-            console.log(this.plan_choice)
             this.plan_id = this.plan_list.filter( plan => plan.number_of_packages+' Pacs => K'+plan.price == choice)[0].id
-            console.log(this.plan_id)
         },
 
         processPay(){
@@ -124,7 +126,9 @@ export default {
                     this.feed_message = "Please confirm your mobile money PIN on your cellphone to complete the transaction."
                     this.err = false
                     this.feed_dialog =true
-                    // this.loading = false
+                    this.pay_query_data = res.data
+                    this.pay_query_count = 1
+                    this.timmerT(res.data)
                 }).catch((err)=>{
                     this.feed_title = 'ERROR'
                     this.feed_message = "An error occured! Please try again. "+err.response.data.detail
@@ -133,6 +137,45 @@ export default {
                     this.loading = false
                 })
             }
+        },
+        timmerT(data){
+            // console.log(data)
+            setTimeout( ()=>this.payQuery(data),10000)
+        },
+
+        payQuery(data){
+            console.log("pay query called:: ",this.pay_query_count)
+                this.loading = true
+                const headers = {
+                    Authorization: 'JWT '+this.$cookies.get('access_token'),
+                }
+
+                this.axios.post('https://packages.pridezm.com/api/pay-query',{phone_number:this.plan_phone, plan_id:this.plan_id, reference_number:data.reference_number, amount:parseInt(data.amount)},{headers}).then((res)=> {
+                    if (this.pay_query_count < 4 && res.data.status == "failed") {
+                        this.timmerT(this.pay_query_data)
+                        this.pay_query_count++
+                    } else {
+                        console.log(res.data)
+                        this.feed_title = res.data.status
+                        this.feed_message = res.data.message
+                        this.err = (res.data.status == "failed")?true:false
+                        this.feed_dialog =true
+                        this.loading = false
+                    }
+                    
+                }).catch((err)=>{
+                    if (this.pay_query_count < 4) {
+                        this.timmerT(this.pay_query_data)
+                        this.pay_query_count++
+                    } else {
+                        this.pay_query_count = 1
+                        this.feed_title = 'ERROR'
+                        this.feed_message = "An error occured! Please try again. "+err.response.data.detail
+                        this.err = true
+                        this.feed_dialog =true
+                        this.loading = false
+                    }
+                })
         },
 
         authVerify(){

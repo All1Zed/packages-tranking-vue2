@@ -17,7 +17,7 @@
           dense
           append-outer-icon="mdi-magnify"
           :rules="[v => !!v  || 'Enter tracking number!']"
-          @keyup="sortPackage(tracking_number)"
+          @keyup.enter="sortPackage(tracking_number)"
           @click:append-outer="sortPackage(tracking_number)"
           ></v-text-field>
           <v-btn class="my-2" dark color="green"  @click="sortPackage(tracking_number)">sort</v-btn>

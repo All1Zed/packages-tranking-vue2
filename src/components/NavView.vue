@@ -34,13 +34,6 @@
                 </v-list-item-icon>
                 <v-list-item-title :class="bcolor=='yellow'?'blue--text':'white--text'">Topup</v-list-item-title>
               </v-list-item>
-
-              <v-list-item link to="/downloads">
-                <v-list-item-icon>
-                  <v-icon :color="bcolor=='yellow'?'blue':'white'">mdi-download</v-icon>
-                </v-list-item-icon>
-                <v-list-item-title :class="bcolor=='yellow'?'blue--text':'white--text'">Downloads</v-list-item-title>
-              </v-list-item>
             </v-list>
         </v-navigation-drawer>
     
@@ -53,12 +46,11 @@
               </v-col>
               <!-- <v-spacer></v-spacer> -->
               <v-col align-self="center" class="text-right">
-                <span  class="mr-2">{{courier.number_of_packages}} Pacs</span>
+                <span  class="mr-2">{{courier.packages_remaining}} Pacs</span>
                 <router-link v-if="!isLogedin" to="/login" :class="bcolor=='yellow'?'blue--text':'white--text'">Login</router-link>
                 <v-btn text @click="logout" :class="bcolor=='yellow'?'blue--text':'white--text'">Log out</v-btn>
               </v-col>
             </v-row>
-    
         </v-app-bar>
     </div>
   </template>
@@ -100,6 +92,21 @@
               this.$router.push('login')
             }
         },
+        cuorierName(){
+            const headers = {
+            Authorization: 'JWT '+this.$cookies.get('access_token'),
+          }
+          this.axios.get('https://packages.pridezm.com/api/courier-companies', {headers}).then((res) =>{
+            if (res.status == 200) {
+              // console.log(res.data[0])
+              this.$cookies.set('courier', res.data[0], '30d')
+            }
+            this.loading =false
+          }).catch(()=>{
+            this.loading = false
+          })
+          
+        },
         logout(){
           this.$cookies.remove('refresh_token')
           this.$cookies.remove('access_token')
@@ -107,12 +114,13 @@
         }
       },
       mounted(){
-        this.authVerify()
+        this.cuorierName()
       },
       created(){
         if(this.$cookies.isKey('courier')){
           this.courier = this.$cookies.get('courier')
         }
+        this.authVerify()
       }
     }
   </script>

@@ -36,6 +36,35 @@
     </div>
 
     <v-container >
+      <v-card flat class="pb-9 mx-auto" max-width="1080">
+        <v-carousel
+          cycle
+          hide-delimiter-background
+          show-arrows-on-hover
+          :height="dheight"
+          ref="slideshow"
+          >
+            <v-carousel-item >
+              <v-img src="../assets/1024 x 500.png" width="100%"></v-img>
+            </v-carousel-item>
+            
+            <v-carousel-item >
+              <v-img src="../assets/mmmmM.jpg" width="100%"></v-img>
+            </v-carousel-item>
+            
+            <v-carousel-item >
+              <v-img src="../assets/1b.jpg" width="100%"></v-img>
+            </v-carousel-item>
+            
+            <v-carousel-item >
+              <v-img src="../assets/1c.jpg" width="100%"></v-img>
+            </v-carousel-item>
+
+            <v-carousel-item >
+              <v-img src="../assets/1d.jpg" width="100%"></v-img>
+            </v-carousel-item>
+        </v-carousel>
+      </v-card>
       <v-card elevation="1" max-width="769" class="mx-auto">
         <v-card-text class="text-center">
           <v-text-field
@@ -49,8 +78,8 @@
           @keyup.enter="trackPackage(tracking_number)"
           ></v-text-field>
           <v-btn class="my-2" dark color="pink" @click="trackPackage(tracking_number)">Track</v-btn>
-          <h1 class="my-1 font-weight-light">OR</h1>
-          <v-btn @click="scannerD = !scannerD" dark color="primary">scan qrcode</v-btn>
+          <!-- <h1 class="my-1 font-weight-light">OR</h1>
+          <v-btn @click="scannerD = !scannerD" dark color="primary">scan qrcode</v-btn> -->
         </v-card-text>
       </v-card>
     </v-container>
@@ -58,35 +87,62 @@
     <!-- <v-container > -->
     <v-container v-if="packag">
         <v-card elevation="1" max-width="768" class="mx-auto">
-            <v-expansion-panels>
+            <v-expansion-panels v-model="expanded">
                 <v-expansion-panel>
-                    <v-expansion-panel-header>Package Status</v-expansion-panel-header>
+                    <v-expansion-panel-header>Package Status - <b>{{ current_status }}</b> - <i>see more</i></v-expansion-panel-header>
                     <v-expansion-panel-content>
                         <v-timeline dense>
                             <v-timeline-item icon="mdi-check">
                                 <h2 class="font-weight-light">PROCESSED</h2>
-                                <p><span>{{ packag.processed_date_time }}</span> - Received at LUSAKA Sorting Facility and processed for Dispatch</p>
+                                <p><span>{{ packag.processed_date_time }}</span> - Received at {{packag.starting_town}} {{packag.company_name}} Courier Facility and processed for Dispatch</p>
                             </v-timeline-item>
-                            <v-timeline-item v-if="packag.transit || packag.ready_for_collection_status" :icon="packag.transit?'mdi-map-marker-check': ''" :color="packag.transit || packag.ready_for_collection_status? 'primary' : 'grey'" >
+
+                            <v-timeline-item v-if="packag.transit_status || packag.ready_for_collection_status" :icon="packag.transit_status || packag.ready_for_collection_status?'mdi-map-marker-check': ''" :color="packag.transit_status || packag.ready_for_collection_status? 'primary' : 'grey'" >
                                 <h2 class="font-weight-light">IN TRANSIT</h2>
                                 <p>{{ packag.transit_departure_time }} - Kindly see the map below for real time package location.</p>
-                                <p>18-06-2022 16:00 - <span>{{ packag.transit_message}}</span></p>
+                                <!-- <p>18-06-2022 16:00 - <span>{{ packag.transit_message}}</span></p> -->
                             </v-timeline-item>
+
+                            <v-timeline-item v-if="(packag.transit_message && packag.transit_message != 'In transit.') || packag.ready_for_collection_status" :icon="packag.transit_message || packag.ready_for_collection_status?'mdi-map-marker-check': ''" :color="packag.transit_message || packag.ready_for_collection_status? 'primary' : 'grey'" >
+                                <h2 class="font-weight-light">IN TRANSIT</h2>
+                                <p>{{ packag.transit_departure_time }} - <span>{{ packag.transit_message}}</span>.</p>
+                                <!-- <p>18-06-2022 16:00 - <span>{{ packag.transit_message}}</span></p> -->
+                            </v-timeline-item>
+
                             <v-timeline-item v-if="packag.ready_for_collection_status" :icon="packag.ready_for_collection_status?'mdi-check': ''" :color="packag.ready_for_collection_status? 'primary' : 'grey'">
                                 <h2 class="font-weight-light">READY FOR COLLECTION</h2>
                                 <p><span>{{ packag.ready_for_collection_date_time}}</span> - Package is ready for collection at {{packag.delivery_town}} Station.</p>
                             </v-timeline-item>
                             <v-timeline-item v-if="packag.collected_status" :icon="packag.collected_status?'mdi-check': ''" :color="packag.collected_status? 'primary' : 'grey'">
                                 <h2 class="font-weight-light">COLLECTED</h2>
-                                <p><span>{{ packag.collected_date_time }}</span> - Package collected. Thanks for using {companyName}</p>
+                                <p><span>{{ packag.collected_date_time }}</span> - Package collected. Thank you for using {{packag.company_name}}</p>
                             </v-timeline-item>
                         </v-timeline>
                     </v-expansion-panel-content>
                 </v-expansion-panel>
             </v-expansion-panels>
-            <MapsView v-if="packag.transit" :package_coord="packag.current_coordinates" />
+            <MapsView v-if="packag.transit_status || packag.processed_status" :package_coord="current_coordinates" />
         </v-card>
-    </v-container>
+      </v-container>
+      <!-- footer ********************************** -->
+      <v-card class="py-16 mt-16" flat color="primary">
+        <v-container class="my-9 text-center max-width-md">
+          <a href="https://buses.all1zed.com" class="white--text green rounded pa-4" style="text-decoration:none">CLICK HERE TO BUY BUS TICKETS</a>
+        </v-container>
+        <h1 class="text-center white--text">Get it from</h1>
+        <v-card-text>
+          <v-sheet color="primary" class="mx-auto" max-width="768">
+            <v-row>
+              <v-col cols="12" md="6" class="text-center">
+                <v-btn @click="externalLink('https://play.google.com/store/apps/details?id=com.orem.ali1zed')" class="py-6" dark ><v-img src="../assets/play.png" width="30" class="mr-2"></v-img> Google Play</v-btn>
+              </v-col>
+              <v-col cols="12" md="6" class="text-center md-text-left">
+                <v-btn @click="externalLink('https://apps.apple.com/us/app/all1zed/id1588388550')" class="py-6" dark ><v-img src="../assets/apple.png" width="30" class="mr-2"></v-img> Apple Store</v-btn>
+              </v-col>
+            </v-row>
+          </v-sheet>
+        </v-card-text>
+      </v-card>
 
     <!-- camera dialog -->
     <v-dialog max-width="768" class="mx-auto" v-model="scannerD" persistent>
@@ -106,7 +162,6 @@
       </v-card>
     </v-dialog>
 
-
     <v-dialog v-model="loading" max-width="100" persistent>
         <v-card>
             <v-card-text class="pt-4">
@@ -119,6 +174,22 @@
             </v-card-text>
         </v-card>
     </v-dialog>
+
+
+    <!-- error dialog -->
+    <v-dialog v-model="error_dialog" max-width="400">
+      <v-card>
+        <v-app-bar flat dark color="red">
+          <v-card-title>ERROR!</v-card-title>
+        </v-app-bar>
+        <v-card-text>
+          <p>{{ error_msg }}</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-btn color="red" dark @click="error_dialog = !error_dialog">ok</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -129,12 +200,17 @@ import MapsView from '@/components/MapsView.vue';
   export default {
     data: () => ({
       scannerD: false,
+      error_dialog: false,
       tracking_number: '',
       loading: null,
       error_msg: null,
       packag: null,
       drawer : null,
       token:null,
+      expanded : [0],
+      dheight: 400,
+      current_status: 'Processed',
+      current_coordinates: [],
     }),
     components: { ScannerView, MapsView },
     methods:{
@@ -160,13 +236,21 @@ import MapsView from '@/components/MapsView.vue';
               Authorization: 'JWT '+this.token,
             }
             this.axios.get('https://packages.pridezm.com/api/packages/'+num, {headers}).then((res) =>{
-              // console.log(res.data)
+              console.log(res.data)
               this.packag = res.data
+              this.stringToArr(this.packag.current_coordinates)
               this.loading = false
+              // if((this.packag.transit_status || this.packag.processed_status) && (!this.packag.ready_for_collection_status && !this.packag.collected_status)){
+              //   this.expanded = []
+              // }
+              this.setCurrentStatus(this.packag)
             }).catch((err)=>{
-              this.error_msg = err.response.data.detail
-              alert(err)
+              this.error_msg = 'an error occured! : '+err.response.data.message
+              if(err.response.status == 404){
+                this.error_msg = "We could not find any package with the tracking number you entered! please check the number if it is a valid tracking number"
+              }
               this.loading = false
+              this.error_dialog = true
             })
           }).catch((err)=>{
             alert(err)
@@ -174,18 +258,51 @@ import MapsView from '@/components/MapsView.vue';
           })
         }
       },
+      setHeight(){
+        this.dheight = this.$refs.slideshow.$el.offsetWidth/2
+      },
+      externalLink(link){
+        document.location = link
+      },
+
+      setCurrentStatus(p){
+        if(p.collected_status){
+          this.current_status = "COLLECTED"
+        }else if(p.ready_for_collection_status){
+          this.current_status = "READY FOR COLLECTION"
+        }else if(p.transit_status){
+          this.current_status = "IN TRANSIT"
+        }
+      },
+      stringToArr(str){
+        this.current_coordinates['0'] = parseFloat(str.split(",")['0'])
+        this.current_coordinates['1'] = parseFloat(str.split(",")['1'])
+        console.log(this.current_coordinates)
+      }
       
+    },
+    destroyed() {
+      window.removeEventListener("resize", this.setHeight);
     },
     mounted(){
       if(this.$cookies.isKey('package')){
         this.tracking_number = this.$cookies.get('package')
       }
+      window.addEventListener("resize", this.setHeight);
+      this.setHeight()
     }
 }
 </script>
 
 <style>
-  .psd{
+  .cos{
     /* background: url('All1Zed2022!.png'); */
+
+  }
+
+  @media screen and (max-width : 768px) {
+    .cos{
+      height: 200px;
+    }
   }
 </style>

@@ -118,9 +118,7 @@ export default {
       }
     },
     created(){
-        if(!this.$cookies.isKey('courier')){
-            this.cuorierName()
-        }
+      this.cuorierName()
     }
 }
 </script>

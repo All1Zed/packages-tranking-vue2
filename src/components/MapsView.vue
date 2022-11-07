@@ -6,6 +6,7 @@
 
       <vl-feature v-if="package_coord" id="position-feature">
         <vl-geom-point :coordinates="package_coord"></vl-geom-point>
+        <!-- <vl-geom-point :coordinates="package_coord"></vl-geom-point> -->
         <vl-style-box>
           <vl-style-icon src="../assets/package_map.png" :scale="0.09" :anchor="[0.5, 1]"></vl-style-icon>
         </vl-style-box>
@@ -34,6 +35,8 @@
         center: [0,0],
         rotation: 0,
         geolocPosition: undefined,
+        lat: 0,
+        long: 0,
       }
     },
     methods:{
@@ -45,6 +48,6 @@
     },
     mounted(){
       this.center = this.package_coord
-    }
+    },
   }
 </script>

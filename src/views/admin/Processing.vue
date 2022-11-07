@@ -1,7 +1,7 @@
 <template>
   <div>
-    <NavView bcolor="primary" pagetitle="Sending" />
-    <v-container>
+    <NavView v-if="printer_off" bcolor="primary" pagetitle="Sending" />
+    <v-container v-if="printer_off">
       <v-card max-width="768" class="mx-auto mb-5" elevation="1">
         <v-card-text>
           <Origin @updat="vall => setOrigin(vall)" />
@@ -20,8 +20,30 @@
         <v-card-text>
           <v-form ref="pform">
             <v-text-field
+                v-model="packag.processed_by"
+                label="Processed by"
+                placeholder="Staff name"
+                append-icon="mdi-account"
+                outlined
+                dense
+                clearable
+                :rules="[v => !!v || 'This field is required']"
+                disabled
+                :loading="!packag.processed_by"
+                ></v-text-field>
+
+            <v-text-field
               v-model="packag.price"
               label="Price"
+              outlined
+              dense
+              append-icon="mdi-currency-usd"
+              :rules="[v => !!v || 'This field is required']"
+            ></v-text-field>
+            
+            <v-text-field
+              v-model="packag.package_value"
+              label="Package Value"
               outlined
               dense
               append-icon="mdi-currency-usd"
@@ -54,17 +76,38 @@
               append-icon="mdi-123"
               :rules="[v => !!v || 'This field is required']"
             ></v-text-field>
+            
+            <v-autocomplete
+              v-model="country"
+              label="Change Country"
+              outlined
+              dense
+              :items="countries"
+              :rules="[v => !!v || 'This field is required']"
+              @change="changeCountry"
+            ></v-autocomplete>
 
+            <!-- Google places auto complete  -->
             <label class="red--text">{{ inp_err }}</label>
-            <Places
-            v-model="country.label"
-            placeholder="Delivery Town"
-            @change="val => { setDelivery(val) }"
-            :options="{countries:['zm']}"
-            />
+            <VueGooglePlaces
+                api-key="AIzaSyA-1kCyANpA8K4_bSKsu-LV9TaOR9XgiEY"
+                types="(cities)"
+                :country="countryIso"
+                @placechanged="val => {setDelivery(val)}"
+            >
+                <v-text-field
+                v-model="delivery_town_label"
+                label="Delivery Town"
+                outlined
+                dense
+                append-icon="mdi-map-marker"
+                :rules="[v => !!v || 'This field is required']"
+                ></v-text-field>
+            </VueGooglePlaces>
+            
             
 
-            <v-autocomplete
+            <v-select
             v-model="selected_vehile"
             label="Select Vehicle"
             dense
@@ -75,7 +118,7 @@
             :rules="[v=>!!v || 'This fiels is required']"
             @change="selectVehicle(selected_vehile)"
             :loading="vehicleDialog"
-            ></v-autocomplete>
+            ></v-select>
 
 
             <v-menu
@@ -91,7 +134,7 @@
                 <v-text-field
                   v-model="packag.departure_date"
                   label="Departure Date"
-                  hint="YYYY- format"
+                  hint="YYYY/MM/DD format"
                   outlined
                   dense
                   persistent-hint
@@ -166,22 +209,87 @@
           </v-form>
         </v-card-text>
       </v-card>
-    </v-container>
 
 
-    <!-- ****************************************** -->
-    <v-dialog v-model="loading" max-width="100" persistent>
+
+
+      <!-- ****************************************** -->
+      <v-dialog v-model="loading" max-width="100" persistent>
+          <v-card>
+              <v-card-text class="pt-4">
+                  <v-progress-circular
+                  color="primary"
+                  indeterminate
+                  size="50"
+                  width="5"
+                  >wait...</v-progress-circular>
+              </v-card-text>
+          </v-card>
+      </v-dialog>
+  
+  
+  
+      
+  
+  
+      <!-- ******************************************************* 
+      RECEIPT CONFIRMATION
+      -->
+      <v-dialog width="768" v-model="confirmDialog" :scrollable="true">
         <v-card>
-            <v-card-text class="pt-4">
-                <v-progress-circular
-                color="primary"
-                indeterminate
-                size="50"
-                width="5"
-                >wait...</v-progress-circular>
-            </v-card-text>
+          <v-app-bar dark dense color="primary" flat>
+            <v-row no-gutters>
+              <v-col>Confirm</v-col>
+              <v-col align-self="center" class="text-right"><v-icon>mdi-times</v-icon></v-col>
+            </v-row>
+          </v-app-bar>
+          <v-card-text>
+          <package-receipt :packagData="packag" :courier="courier.company_name"/>
+            <v-divider class="mb-2"></v-divider>
+            <v-row no-gutters>
+              <v-col>
+                <v-btn color="grey" dark @click="confirmDialog = false">cancel</v-btn>
+              </v-col>
+              <v-spacer></v-spacer>
+              <v-col>
+                <!-- <v-btn color="primary" @click="beforeDownload">confirm</v-btn> -->
+                <v-btn color="primary" @click="packageProcessor">confirm</v-btn>
+              </v-col>
+            </v-row>
+          </v-card-text>
         </v-card>
-    </v-dialog>
+      </v-dialog>
+  
+      <!-- origin input dialog -->
+      <v-dialog v-model="origin_input_dialog" max-width="400" persistent>
+              <v-card height="400">
+                  <v-app-bar color="primary" dark dense flat>
+                      <v-card-title>Select your current town</v-card-title>
+                  </v-app-bar>
+                  <div>
+                      <v-progress-linear color="orange" indeterminate></v-progress-linear>
+                  </div>
+                  <v-card-text class="mt-9">
+                    <Origin @updat="vall => setOrigin(vall)" />
+                  </v-card-text>
+              </v-card>
+          </v-dialog>
+  
+      <!-- feed baack dialog -->
+      <v-dialog v-model="feed_dialog" max-width="400">
+        <v-card>
+          <v-app-bar dense flat dark :color="err?'red':'green'">
+            <v-card-title>{{feed_title}}</v-card-title>
+          </v-app-bar>
+          <v-card-text>
+            <p class="my-9">{{feed_message}}</p>
+          </v-card-text>
+          <v-card-actions>
+            <v-btn @click="feed_dialog = false" :color="err?'red':'green'" dark>Ok<v-icon right>mdi-check</v-icon></v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+    </v-container>
 
 
 
@@ -189,6 +297,7 @@
     RECEIPT PRINT
     -->
     <v-dialog width="768" v-model="printDialog" scrollable persistent>
+      
       <v-card color="grey" class="lighten-2">
         <v-app-bar dark dense color="primary" flat>
           <v-row no-gutters>
@@ -197,83 +306,16 @@
           </v-row>
         </v-app-bar>
         <v-card-text>
-          <div id="print" ref="label">
-            <div v-for="n in print_count" :key="n" class="lables">
-              <h3 class="text-center py-2">{{ courier.company_name }} COURIER</h3>
-              <div class="sct">
-                <p><b>RECEIVER'S DETAILS</b></p>
-                <p>NAME: <b>{{ packagePriv.receiver_name}}</b></p>
-                <p>PHONE NO.: <b>{{ packagePriv.receiver_phone_number}}</b></p>
-              </div>
-  
-              <div class="sct">
-                <p>PACKAGE ROUTE</p>
-                <p class="text-center"><b>{{ origin.name }} - {{ packagePriv.delivery_town }}</b></p>
-              </div>
-  
-              <div class="sct" style="padding:0 4px">
-                <table width="100%">
-                  <tr>
-                    <td width="30%">
-                      <p>NO. OF PIECES </p>
-                    </td>
-                    <td width="30%" style="text-align:center;border-right: 1px solid;padding: 12px 4px"><p><b>{{print_count}}</b></p></td>
-                    <td width="30%" style="text-align:right; padding: 12px 4px">
-                      <p class="text-center"><b>{{n}}/{{ print_count }}</b></p>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-  
-              <div class="sct">
-                <table width="100%">
-                  <tr>
-                    <td >
-                      <p>CHARGE</p>
-                    </td>
-                    <td width="50%">
-                      <p ><b>K{{ packagePriv.price }}</b></p>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-
-              <div class="sct">
-                <p>SENDER'S PHONE NUMBER</p>
-                <p class="text-center"><b>{{ packagePriv.sender_phone_number }}</b></p>
-              </div>
-  
-              <div class="sct text-center py-4 canvas">
-                <p><b>TRACKING NUMBER</b></p>
-                <p class="text-center">{{packagePriv.package_tracking_number}}</p>
-                <br><br>
-                <table>
-                  <tr>
-                    <td width="30%"></td>
-                    <td width="30%"><qrcode-vue  :value="packagePriv.package_tracking_number" :size="200" level="H" /></td>
-                    <td width="30%"></td>
-                  </tr>
-                </table>
-                <p class="text-center my-4">{{packagePriv.processed_date_time}}</p>
-              </div>
-              <div class="capitalize">
-                <p class="pa-0 ma-0">buy bus tickets online</p>
-                <p class="pa-0 ma-0">buy football tickets online</p>
-                <p class="pa-0 ma-0">buy event tickets online</p>
-                <p class="pa-0 ma-0">download all1zed app </p>
-                
-                <p class="text-right pa-0 my-4" style="margin-top:4px">All1zed Package Tracking</p>
-              </div>
-            </div>
-
-          </div>
-          <v-divider class="mb-2"></v-divider>
+          <!-- import receipt component -->
+          <package-receipt :packagData="packagePriv" :courier="courier.company_name" />
           
         </v-card-text>
         <v-card-actions>
           <div class="text-right">
-            <v-btn class="ml-4" color="grey" dark @click="printDialog = false">done <v-icon>mdi-check</v-icon></v-btn>
-            <v-btn class="ml-4" color="primary" @click="printLabel">Print <v-icon>mdi-printer</v-icon></v-btn>
+            <v-btn class="ml-4" color="grey" dark @click="$router.go($router.currentRoute)">done <v-icon>mdi-check</v-icon></v-btn>
+            <v-btn class="ml-4" color="primary" @click="generateReport">download <v-icon>mdi-download</v-icon></v-btn>
+            
+            
           </div>
         
         </v-card-actions>
@@ -281,91 +323,47 @@
     </v-dialog>
 
 
-    <!-- ******************************************************* 
-    RECEIPT CONFIRMATION
-    -->
-    <v-dialog width="400" v-model="confirmDialog" :scrollable="false">
+
+    <vue-html2pdf
+        :show-layout="false"
+        :float-layout="true"
+        :enable-download="true"
+        :preview-modal="false"
+        :filename="packagePriv.receiver_name"
+        :pdf-quality="1"
+        :manual-pagination="true"
+        :paginate-elements-by-height="950"
+        pdf-format="a4"
+        pdf-orientation="portrait"
+        :margin="45"
+ 
+        @progress="onProgress($event)"
+        @hasStartedGeneration="hasStartedGeneration()"
+        @hasGenerated="hasGenerated($event)"
+        ref="html2Pdf"
+    >
+        <section slot="pdf-content">
+          <package-receipt :packagData="packagePriv" :courier="courier.company_name" />
+        </section>
+    </vue-html2pdf>
+
+    <!-- download dialog -->
+    <v-dialog persistent v-model="downloadInd" max-width="400">
       <v-card>
-        <v-app-bar dark dense color="primary" flat>
-          <v-row no-gutters>
-            <v-col>Confirm</v-col>
-            <v-col align-self="center" class="text-right"><v-icon>mdi-times</v-icon></v-col>
-          </v-row>
+        <v-app-bar color="blue" dark dense flat>
+          <v-card-title>Downloading</v-card-title>
         </v-app-bar>
-        <v-card-text>
-          <div id="confirm">
-            <h3 class="text-center">{{ company_name }}</h3>
-            <div class="sct">
-              <h3>RECEIVER'S DETAILS</h3>
-              <p>NAME: <b>{{ packag.receiver_name}}</b></p>
-              <p>PHONE NO.: <b>{{ packag.receiver_phone_number}}</b></p>
-            </div>
-
-            <div class="sct">
-              <p>PACKAGE ROUTE</p>
-              <p class="text-center"><b>{{ origin.name }} <v-icon>mdi-arrow-right</v-icon> {{ packag.delivery_town }}</b></p>
-            </div>
-
-            <div class="sct">
-              <v-row no-gutters>
-                <v-col>
-                  <p>NO. OF PIECES</p>
-                </v-col>
-                <v-col class="bb-1">
-                  <p class="text-center"><b>{{ packag.number_of_packages }}</b></p>
-                </v-col>
-              </v-row>
-            </div>
-
-            <div class="sct">
-              <p>CHARGE</p>
-              <p class="text-center"><b>{{ packag.price }}</b></p>
-            </div>
-            <div class="sct">
-              <p>SENDER'S PHONE NUMBER</p>
-              <p class="text-center"><b>{{ packag.sender_phone_number }}</b></p>
-            </div>
-          </div>
-          <v-divider class="mb-2"></v-divider>
-          <v-row no-gutters>
-            <v-col>
-              <v-btn color="grey" dark @click="confirmDialog = false">cancel</v-btn>
-            </v-col>
-            <v-spacer></v-spacer>
-            <v-col>
-              <v-btn color="primary" @click="packageProcessor">confirm</v-btn>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-
-    <!-- origin input dialog -->
-    <v-dialog v-model="origin_input_dialog" max-width="400" persistent>
-            <v-card height="400">
-                <v-app-bar color="primary" dark dense flat>
-                    <v-card-title>Select your current town</v-card-title>
-                </v-app-bar>
-                <div>
-                    <v-progress-linear color="orange" indeterminate></v-progress-linear>
-                </div>
-                <v-card-text class="mt-9">
-                  <Origin @updat="vall => setOrigin(vall)" />
-                </v-card-text>
-            </v-card>
-        </v-dialog>
-
-    <!-- feed baack dialog -->
-    <v-dialog v-model="feed_dialog" max-width="400">
-      <v-card>
-        <v-app-bar dense flat dark :color="err?'red':'green'">
-          <v-card-title>{{feed_title}}</v-card-title>
-        </v-app-bar>
-        <v-card-text>
-          <p class="my-9">{{feed_message}}</p>
+        <v-card-text class="pt-12 text-center">
+          <p class="mb-2">{{ downloadMsg }}</p>
+          <v-progress-linear rounded :value="dProgress" height="15">
+            <template >
+              <strong>{{ Math.ceil(dProgress) }}%</strong>
+            </template>
+          </v-progress-linear>
         </v-card-text>
         <v-card-actions>
-          <v-btn @click="feed_dialog = false" :color="err?'red':'green'" dark>Ok<v-icon right>mdi-check</v-icon></v-btn>
+          <v-btn :disabled="!dDone" color="blue" text dark @click="downloadInd = false">ok</v-btn>
+          <v-btn :disabled="dDone" color="grey" text dark @click="downloadInd = false">hide</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -374,53 +372,69 @@
 
 <script>
   import NavView from '@/components/NavView.vue';
-  import Places from 'vue-places';
+  import VueHtml2pdf from 'vue-html2pdf'
+  import {VueGooglePlaces} from 'vue-google-places'
+  // import Places from 'vue-places';
   import '@/components/auth.vue'
   import Origin from '@/components/Origin.vue';
-  import QrcodeVue from 'qrcode.vue'
-  import print from 'vue-print-nb-element'
+  import PackageReceipt from '@/components/PackageReceipt.vue';
 
   // https://packages.pridezm.com/api/courier-companies
 
   export default {
       name: "ProcessingView",
-      components: { NavView, Places, Origin, QrcodeVue},
+      components: { NavView, Origin, PackageReceipt, VueHtml2pdf, VueGooglePlaces },
       directives: { print },
       data: () => ({
         confirmDialog: false,
         printDialog:false,
         origin_input_dialog: false,
         company_name: 'Company name',
-        print_count: 3,
+        print_count: 1,
+        countries: ['Zambia', 'Malawi', 'Namibia', 'Botswana', 'Zimbabwe'],
+        country: 'Zambia',
+        countryIso: 'zm',
 
         feed_dialog: false,
         feed_title: '',
         feed_message: '',
         err:null,
+        printer_off: true, 
+        startting_town_label:'',
+        delivery_town_label:'',
+        downloadInd: false,
+        dProgress: 0,
+        dDone: false,
+        downloadMsg: 'Your file is downloading...',
+        
 
         courier: {},
         origin: {},
+        operator_name: '',
 
         packag: {
-            receiver_name: "",
-            receiver_phone_number: "",
-            sender_phone_number: "",
-            delivery_town: "",
-            starting_town: "",
-            vehicle: null,
-            number_of_packages: 1,
-            price: null,
-            departure_date: null,
-            departure_time: null,
-            transit_date_time: null,
-            ready_for_collection_date_time: null,
-            collected_date_time: null,
-            processed_status: true,
-            transit_status: false,
-            ready_for_collection_status: false,
-            collected_status: false,
-            current_coordinates: "-15.4165, 28.2821"
+          processed_by: null,
+          package_value: '0',
+          receiver_name: "",
+          receiver_phone_number: "",
+          sender_phone_number: "",
+          delivery_town: "",
+          starting_town: "",
+          vehicle: null,
+          number_of_packages: 1,
+          price: null,
+          departure_date: null,
+          departure_time: null,
+          transit_date_time: null,
+          ready_for_collection_date_time: null,
+          collected_date_time: null,
+          processed_status: true,
+          transit_status: false,
+          ready_for_collection_status: false,
+          collected_status: false,
+          current_coordinates: "-15.4165, 28.2821"
         },
+        
         packagePriv:{},
         menu1: false,
         modal2: false,
@@ -431,27 +445,72 @@
         selected_vehile: null,
         inp_err: null,
         vehicleDialog: false,
-
-        // places
-        country: {
-            label: null,
-            data: {},
-          },
+          
         
       }),
 
       methods:{
-        printLabel(){
-          console.log(this.$refs.label)
-          this.$htmlToPaper('print',{title:'lumas'})
+        changeCountry(country){
+          switch (country) {
+            case 'Zambia':
+              this.countryIso = 'zm'
+              break;
+            
+            case 'Malawi':
+              this.countryIso = 'mw'
+              break; 
+            
+            case 'Namibia':
+              this.countryIso = 'na'
+              break;
+          
+            case 'Botswana':
+              this.countryIso = 'bw'
+              break;
+
+            case 'Zimbabwe':
+              this.countryIso = 'zw'
+              break;
+
+            default:
+              this.countryIso = 'zm'
+              break;
+          }
         },
+        printLabel(){
+          this.printer_off = false
+          this.$print(PackageReceipt, {packagData:this.packagePriv, courier: this.courier.company_name})
+        },
+        generateReport () {
+          this.downloadInd = true
+          this.printDialog = false
+            this.$refs.html2Pdf.generatePdf()
+        },
+        
+        onProgress(val){
+          this.dProgress = val
+          if(val == 100){
+            this.dDone = true
+            this.downloadMsg = 'Your download is complete! The file has been save in your down load folder with the receiver\'s name.'
+          }
+        },
+        // hasStartedGeneration(){},
+        hasGenerated(){
+          this.dDone = true
+          this.downloadMsg = 'Your download is complete! The file has been save in your down load folder with the receiver\'s name.'
+        },
+        
         validatePackage(){
           if(this.$refs.pform.validate()){
             if (!this.packag.delivery_town) {
               this.inp_err = 'Please select destination town'
               return
             }
+            if (!this.packag.processed_by) {
+              this.getOperator()
+            }
             this.confirmDialog = true
+            // console.log(this.packag)
           }
         },
         packageProcessor(){
@@ -470,8 +529,10 @@
               this.print_count = this.packagePriv.number_of_packages
               this.printDialog = true
               this.$refs.pform.reset()
+              this.getOperator()
               this.loading = false
             }).catch((err)=>{
+              console.log(err)
               if (err.response.status==401) {
                 this.packageProcessor()
               }else{
@@ -513,15 +574,22 @@
         },
         setOrigin(origin){
           if (origin) {
-            this.origin = origin
+            this.origin = origin.name
             this.packag.starting_town = origin.name
-            this.packag.current_coordinates = origin.latlng.lat+', '+origin.latlng.lng
+            // console.log(origin)
+            this.packag.current_coordinates = origin.location
             this.origin_input_dialog = false
           }
         },
         setDelivery(origin){
-          this.packag.delivery_town = origin.name
+          // console.log(origin)
+          if(origin){
+            this.packag.delivery_town = origin.name
+            this.delivery_town_label = origin.name
+            this.inp_err = null 
           this.inp_err = null
+            this.inp_err = null 
+          }
         },
         selectVehicle(vehicle){
           this.packag.vehicle = this.vehicles.filter(arr => arr.vehicle_full_name == vehicle)[0].id
@@ -547,7 +615,7 @@
             }
             this.vehicleDialog = false
           }).catch((error) => {
-            if (error.response.status==401) {
+            if (error.response.status == 401) {
               this.getVehicles()
             }else{
               this.feed_title = 'ERROR'
@@ -557,13 +625,22 @@
               this.vehicleDialog = false
             }
           })
-        }
+        },
+        getOperator(){
+          this.authVerify();
+          const headers = {
+            Authorization: 'JWT '+this.$cookies.get('access_token'),
+          }
+          this.axios.get('https://packages.pridezm.com/auth/users/me', {headers}).then((res) =>{
+            this.packag.processed_by = res.data.username
+          }).catch(()=>{
+            
+          })
+        },
       },
       mounted(){
           this.getVehicles()
-          if(!this.$cookies.isKey('origin')){
-            this.origin_input_dialog = true
-          }
+          this.getOperator()
       },
       created(){
         if(this.$cookies.isKey('courier')){
@@ -577,7 +654,7 @@
 
   .lables{
     height: 1000px;
-    margin: 100px 0;
+    margin: 0 16px;
     background-color: #fff;
     border-radius: 5px;
   }

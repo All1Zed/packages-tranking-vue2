@@ -3,7 +3,7 @@
     <div class="filter">
         <v-row>
             <v-col align-self="center">
-                <v-card max-width="300" class="mx-auto mt-10">
+                <v-card max-width="500" class="mx-auto mt-10">
                     <v-app-bar dense dark color="primary" flat> Log in</v-app-bar>
                     <v-card-text>
                         <v-form ref="form1">
@@ -69,7 +69,6 @@ export default {
                 }).catch((err) =>{
                     if(err.response.data)this.error_msg = err.response.data.detail;
                     this.loading = false
-                    alert(err)
                 })
             }
         },
@@ -89,6 +88,9 @@ export default {
       }
     },
     created(){
+        if (this.$cookies.isKey('courier')) {
+            this.$cookies.remove('courier')
+        }
         this.refreshAuth()
     }
 }
